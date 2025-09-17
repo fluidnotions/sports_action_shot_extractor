@@ -1,0 +1,51 @@
+# Git and version control
+.git
+.gitignore
+
+# Python cache and virtual environments
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv/
+.env
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Test and coverage files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Example files and test data
+examples/
+test_videos/
+*.mp4
+*.avi
+*.mov
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.temp
+uploads/
+outputs/
