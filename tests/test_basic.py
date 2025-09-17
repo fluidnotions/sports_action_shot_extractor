@@ -1,4 +1,4 @@
-"""Smoke tests for the FrameScout project."""
+"""Smoke tests for the Action Shot Extractor project."""
 
 from __future__ import annotations
 
@@ -12,8 +12,10 @@ from click.testing import CliRunner
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from framescout.cli import main as cli_main
-from framescout.utils import hex_to_bgr, hue_distance, is_sharp
+from action_shot_extractor.cli import main as cli_main
+from action_shot_extractor.utils import hex_to_bgr, hue_distance, is_sharp
+from action_shot_extractor.player_matcher import create_player_matcher
+from action_shot_extractor.pipeline import run_pipeline, FrameResult, ensure_device
 
 
 def test_hex_to_bgr_parses_color():
@@ -53,7 +55,7 @@ def test_is_sharp_discriminates_textures():
 def test_cli_dry_run(tmp_path: Path):
     """The CLI should support dry-run execution for validation."""
 
-    from framescout.utils import find_ffmpeg
+    from action_shot_extractor.utils import find_ffmpeg
 
     try:
         find_ffmpeg()
@@ -80,3 +82,104 @@ def test_cli_dry_run(tmp_path: Path):
 
     assert result.exit_code == 0, result.output
     assert "Dry run successful" in result.output
+
+
+def test_player_matcher_creation():
+    """Player matcher can be created with different methods."""
+
+    # Test color-based matcher
+    color_matcher = create_player_matcher("color", hex_color="#FF0000")
+    assert color_matcher.method == "color"
+    assert "target_hue" in color_matcher.matcher_data
+
+    # Test invalid method
+    with pytest.raises(ValueError, match="Unknown method"):
+        create_player_matcher("invalid_method")
+
+
+def test_device_resolution():
+    """Device resolution should handle various inputs correctly."""
+
+    # Test CPU default
+    assert ensure_device("cpu") == "cpu"
+    assert ensure_device("") == "cpu"
+    assert ensure_device(None) == "cpu"
+
+    # Test auto detection (should not raise)
+    device = ensure_device("auto")
+    assert device in ["cpu", "cuda", "mps", "cuda:0"]
+
+
+def test_frame_result_creation():
+    """FrameResult objects can be created with expected fields."""
+
+    result = FrameResult(
+        index=1,
+        frame_path=Path("test.jpg"),
+        sharpness=100.0,
+        color_ratio=0.5,
+        detection_count=2,
+        mask_ratio=0.3,
+        hit=True
+    )
+
+    assert result.index == 1
+    assert result.frame_path == Path("test.jpg")
+    assert result.sharpness == 100.0
+    assert result.color_ratio == 0.5
+    assert result.detection_count == 2
+    assert result.mask_ratio == 0.3
+    assert result.hit is True
+    assert result.export_path is None
+
+
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(pkg) is None for pkg in ("cv2", "numpy")),
+    reason="OpenCV or NumPy not available.",
+)
+def test_color_player_matching():
+    """Color-based player matching should work with synthetic data."""
+
+    # Create a simple test frame with red pixels
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    frame[40:60, 40:60] = [0, 0, 255]  # Red square in BGR
+
+    # Create color matcher for red
+    matcher = create_player_matcher("color", hex_color="#FF0000")
+
+    # Find player in frame
+    result = matcher.find_player_in_frame(frame)
+
+    # Should find the red square
+    assert result["found"] is True
+    assert result["confidence"] > 0.0
+    assert result["bbox"] is not None
+    assert "mask" in result["method_data"]
+
+
+@pytest.mark.skipif(
+    any(importlib.util.find_spec(pkg) is None for pkg in ("torch", "ultralytics", "transformers")),
+    reason="Heavy optional dependencies are not installed.",
+)
+def test_pipeline_with_reference_frames(tmp_path: Path):
+    """Pipeline should accept reference frame detection method."""
+
+    # Create dummy reference frames
+    ref_dir = tmp_path / "references"
+    ref_dir.mkdir()
+
+    # Create minimal reference images (just to test config validation)
+    for ref_name in ["front.jpg", "side.jpg", "back.jpg"]:
+        ref_path = ref_dir / ref_name
+        # Create a small dummy image
+        dummy_image = np.random.randint(0, 255, (50, 50, 3), dtype=np.uint8)
+        import cv2
+        cv2.imwrite(str(ref_path), dummy_image)
+
+    # Test that reference detection config is accepted
+    detection_config = {"reference_dir": ref_dir}
+
+    # This should not raise an error during initialization
+    matcher = create_player_matcher("reference", reference_dir=str(ref_dir))
+    assert matcher.method == "reference"
+    assert "reference_features" in matcher.matcher_data
