@@ -1,5 +1,5 @@
 # Action Shot Extractor Docker Image
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -20,13 +20,17 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 COPY pyproject.toml .
 
-# Install Python dependencies
+# Install Python dependencies with PyTorch CPU-only for faster builds
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir streamlit
 
-# Install the package in development mode
+# Copy application files
 COPY . .
-RUN pip install -e .
+
+# Make CLI command available globally without pip install
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
+RUN ln -s /app/src/action_shot_extractor/cli.py /usr/local/bin/action-shot-extractor && chmod +x /usr/local/bin/action-shot-extractor
 
 # Create directories for uploads and outputs
 RUN mkdir -p /app/uploads /app/outputs /app/reference_frames

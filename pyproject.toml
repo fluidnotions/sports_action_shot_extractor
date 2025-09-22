@@ -7,12 +7,12 @@ readme = "README.md"
 packages = [{ include = "action_shot_extractor", from = "src" }]
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.11"
 click = "^8.1.7"
 ultralytics = "^8.0.0"
 torch = "^2.2.0"
 torchvision = "^0.17.0"
-torchaudio = "^2.2.0"
+# torchaudio = "^2.2.0"  # Removed for faster builds
 opencv-python = "^4.8.0"
 pillow = "^10.0.0"
 numpy = "^1.26.0"

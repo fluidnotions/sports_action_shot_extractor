@@ -40,7 +40,7 @@ Result: Curated high-action shots without manual scrubbing.
 
 ## Technical Stack & Features
 
-- **Python 3.13+** with Poetry, works on Windows/macOS/Linux
+- **Python 3.11+** with Poetry, works on Windows/macOS/Linux
 - **YOLOv8 + SegFormer** – AI models for object detection and scene understanding
 - **Dual Detection** – Color-based OR reference frame matching for player identification
 - **Parallel Processing** – Multi-threaded analysis for faster processing on multi-core systems
